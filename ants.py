@@ -210,7 +210,12 @@ class Colony:
         [pheromones.mark(self.historic_path[i, self.age[i], :],
                          [has_north_exit[i], has_east_exit[i], has_west_exit[i], has_south_exit[i]], old_pheromone) for i in range(self.directions.shape[0])]
         
-        pheromones.pheromon = comm.allreduce(old_pheromone, op=MPI.MAX)
+
+        #réunion des phéromones entre les processus
+        
+        old_pheromone_flat = old_pheromone.flatten()
+        comm.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
+        pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
         return food_counter
 
     def display(self, screen):
@@ -221,9 +226,12 @@ if __name__ == "__main__":
     import sys
     import time
 
+    #initialisation des processus
     comm = MPI.COMM_WORLD.Dup()
     nbp = comm.size
     rank = comm.rank
+
+    print(f"Hello from {rank} of {nbp}")
 
     pg.init()
     size_laby = 25, 25
@@ -232,7 +240,9 @@ if __name__ == "__main__":
 
     resolution = size_laby[1]*8, size_laby[0]*8
     screen = pg.display.set_mode(resolution)
-    nb_ants = size_laby[0]*size_laby[1]//4
+    nb_ants = (size_laby[0]*size_laby[1]//4)//nbp
+    if (rank < (size_laby[0]*size_laby[1]//4)%nbp):
+        nb_ants += 1
     max_life = 500
     if len(sys.argv) > 3:
         max_life = int(sys.argv[3])
