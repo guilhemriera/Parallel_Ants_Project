@@ -214,7 +214,7 @@ class Colony:
         #réunion des phéromones entre les processus
         
         old_pheromone_flat = old_pheromone.flatten()
-        comm_calcule.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
+        comm.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
         pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
         return food_counter
 
@@ -226,23 +226,22 @@ if __name__ == "__main__":
     import sys
     import time
 
-    #initialisation des processus
-    comm = MPI.COMM_WORLD.Dup()
-    nbp = comm.size
-    rank = comm.rank
-
-    comm_calcule = comm.Split(color=int(rank!=0), key=rank)
-
-    print(f"Hello from {rank} of {nbp}")
-
     pg.init()
     size_laby = 25, 25
     if len(sys.argv) > 2:
         size_laby = int(sys.argv[1]),int(sys.argv[2])
 
     resolution = size_laby[1]*8, size_laby[0]*8
+    # if rank == 0:
     screen = pg.display.set_mode(resolution)
-    #nbp-1?
+    print("aaaa")
+
+        #initialisation des processus
+    comm = MPI.COMM_WORLD.Dup()
+    nbp = comm.size
+    rank = comm.rank
+    print(f"Hello from {rank} of {nbp}")
+
     nb_ants = (size_laby[0]*size_laby[1]//4)//nbp
     if (rank < (size_laby[0]*size_laby[1]//4)%nbp):
         nb_ants += 1
@@ -261,7 +260,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         beta = float(sys.argv[5])
     pherom = pheromone.Pheromon(size_laby, pos_food, alpha, beta)
-    mazeImg = a_maze.display()
+    if rank == 0 :
+        mazeImg = a_maze.display()
     food_counter = 0
     
 
@@ -272,96 +272,33 @@ if __name__ == "__main__":
                 pg.quit()
                 exit(0)
 
-
-
-########################################################################################
-######################## PARTIE JEROME QUI MARCHE PAS ##################################
-########################################################################################
-
-
-
-        # # create empty ne marche pas je sais pas pourquoi
-        # pherom_glob = pheromone.Pheromon.create_empty(size_laby)
-
-        # # allreduce ne marche pas non plus, je sais pas pourquoi
-        # comm.Allreduce(pherom, pherom_glob, op=MPI.SUM)
-
-        # if rank == 0:
-            
-        #     deb = time.time()
-        #     pherom_glob.display(screen)
-        #     screen.blit(mazeImg, (0, 0))
-        #     ants.display(screen)
-        #     pg.display.update()
-        #     end = time.time()
-        #     food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
-        #     pherom_glob.do_evaporation(pos_food)
-        #     if food_counter == 1 and not snapshop_taken:
-        #         pg.image.save(screen, "MyFirstFood.png")
-        #         snapshop_taken = True
-        #     print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
-
-
-
-        if rank == 0:
-            
-            deb = time.time()
-            pherom.display(screen)
-            screen.blit(mazeImg, (0, 0))
-            ants.display(screen)
-            pg.display.update()
-            end = time.time()
-            food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
-            pherom.do_evaporation(pos_food)
-            if food_counter == 1 and not snapshop_taken:
-                pg.image.save(screen, "MyFirstFood.png")
-                snapshop_taken = True
-            print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
-
-
-        # deb = time.time()
-        # pherom.display(screen)
-        # screen.blit(mazeImg, (0, 0))
-        # ants.display(screen)
-        # pg.display.update()
                 
-        # food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
-        # pherom.do_evaporation(pos_food)
-        # end = time.time()
-        # if food_counter == 1 and not snapshop_taken:
-        #     pg.image.save(screen, "MyFirstFood.png")
-        #     snapshop_taken = True
-        # # pg.time.wait(500)
-        # print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
-
 
         ## afichage sur un thread different
-                
-        # pherom_glob = np.zeros(resolution)
-        
+        pherom_glob = np.zeros(resolution)
         # ## Gatherv pour un vecteur, Gather sinon, je suis pas sur du type
         # comm.Allreduce(pherom, pherom_glob, op=MPI.SUM)
         #quentin a fait un allreduce
 
-        # if rank == 0:
-        #     ## Gather and process information from other ranks
-        #     for i in range(1, nbp):
-        #         pherom = np.zeros(resolution)  # Initialize array for storing pheromones from each rank
-        #         comm.Recv(pherom, source=i)  # Receive pheromone information from other ranks
-        #         pherom_glob += pherom  # Aggregate pheromones from different ranks
+        if rank == 0:
+            ## Gather and process information from other ranks
+            for i in range(1, nbp):
+                pherom = np.zeros(resolution)  # Initialize array for storing pheromones from each rank
+                comm.Recv(pherom, source=i)  # Receive pheromone information from other ranks
+                pherom_glob += pherom  # Aggregate pheromones from different ranks
 
-        #     deb = time.time()
-        #     pherom_glob.display(screen)
-        #     screen.blit(mazeImg, (0, 0))
-        #     ants.display(screen)
-        #     pg.display.update()
-        #     end = time.time()
+            deb = time.time()
+            pherom_glob.display(screen)
+            screen.blit(mazeImg, (0, 0))
+            ants.display(screen)
+            pg.display.update()
+            end = time.time()
                     
-        #     food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
-        #     pherom_glob.do_evaporation(pos_food)
-        #     #end = time.time()
-        #     if food_counter == 1 and not snapshop_taken:
-        #         pg.image.save(screen, "MyFirstFood.png")
-        #         snapshop_taken = True
-        #     # pg.time.wait(500)
-        #     print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+            food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
+            pherom_glob.do_evaporation(pos_food)
+            #end = time.time()
+            if food_counter == 1 and not snapshop_taken:
+                pg.image.save(screen, "MyFirstFood.png")
+                snapshop_taken = True
+            # pg.time.wait(500)
+            print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
