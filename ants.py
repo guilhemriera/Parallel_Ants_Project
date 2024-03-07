@@ -241,7 +241,7 @@ if __name__ == "__main__":
     resolution = size_laby[1]*8, size_laby[0]*8
     screen = pg.display.set_mode(resolution)
     nb_ants = (size_laby[0]*size_laby[1]//4)//nbp
-    if (rank < (size_laby[0]*size_laby[1]//4)%nbp):
+    if (rank < (size_laby[0]*size_laby[1]//4)%nbp and rank != 0):
         nb_ants += 1
     max_life = 500
     if len(sys.argv) > 3:
@@ -273,13 +273,28 @@ if __name__ == "__main__":
 
         ## afichage sur un thread different
                 
-        ##je connais pas la taille de pherom...
-        pherom_glob = np.zeros(pherom.size)
-        ## Gatherv pour un vecteur, Gather sinon, je suis pas sur du type
-        comm.Gatherv(pherom, pherom_glob, 0)
-        #quentin a fait un reduce pour les pheromones
+        ##je connais pas la taille de pherom... nombre de cases
+        pherom_glob = np.zeros(resolution)
+        # ## Gatherv pour un vecteur, Gather sinon, je suis pas sur du type
+        # comm.Gather(pherom, pherom_glob, 0)
+
 
         if rank == 0:
+            ## Gather and process information from other ranks
+            for i in range(1, nbp):
+                rank_pherom = np.zeros(resolution)  # Initialize array for storing pheromones from each rank
+                comm.Recv(rank_pherom, source=i)  # Receive pheromone information from other ranks
+                pherom_glob += rank_pherom  # Aggregate pheromones from different ranks
+
+            ## Display gathered information
+            # deb = time.time()
+            # pherom.display(pherom_glob, screen)  # Display gathered pheromones
+            # screen.blit(mazeImg, (0, 0))  # Display maze
+            # ants.display(screen)  # Display ants
+            # pg.display.update()  # Update display
+
+
+
             deb = time.time()
             pherom_glob.display(screen)
             screen.blit(mazeImg, (0, 0))
