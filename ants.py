@@ -280,6 +280,8 @@ if __name__ == "__main__":
 
 
 
+############################# Partie qui marche pas ####################################
+
         # # create empty ne marche pas je sais pas pourquoi
         # pherom_glob = pheromone.Pheromon.create_empty(size_laby)
 
@@ -303,6 +305,8 @@ if __name__ == "__main__":
 
 
 
+############################# Partie qui marche ####################################
+
         if rank == 0:
             
             deb = time.time()
@@ -318,6 +322,8 @@ if __name__ == "__main__":
                 snapshop_taken = True
             print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
 
+
+####################### Brouillons pour copier coller ################################
 
         # deb = time.time()
         # pherom.display(screen)
