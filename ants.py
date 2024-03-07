@@ -214,7 +214,7 @@ class Colony:
         #réunion des phéromones entre les processus
         
         old_pheromone_flat = old_pheromone.flatten()
-        comm.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
+        comm_calcule.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
         pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
         return food_counter
 
@@ -231,6 +231,8 @@ if __name__ == "__main__":
     nbp = comm.size
     rank = comm.rank
 
+    comm_calcule = comm.Split(color=int(rank!=0), key=rank)
+
     print(f"Hello from {rank} of {nbp}")
 
     pg.init()
@@ -239,11 +241,9 @@ if __name__ == "__main__":
         size_laby = int(sys.argv[1]),int(sys.argv[2])
 
     resolution = size_laby[1]*8, size_laby[0]*8
-    if rank == 0:
-        screen = pg.display.set_mode(resolution)
-        print("aaaa")
+    screen = pg.display.set_mode(resolution)
     nb_ants = (size_laby[0]*size_laby[1]//4)//nbp
-    if (rank < (size_laby[0]*size_laby[1]//4)%nbp and rank != 0):
+    if (rank < (size_laby[0]*size_laby[1]//4)%nbp):
         nb_ants += 1
     max_life = 500
     if len(sys.argv) > 3:
@@ -260,8 +260,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         beta = float(sys.argv[5])
     pherom = pheromone.Pheromon(size_laby, pos_food, alpha, beta)
-    if rank == 0 :
-        mazeImg = a_maze.display()
+    mazeImg = a_maze.display()
     food_counter = 0
     
 
@@ -272,43 +271,17 @@ if __name__ == "__main__":
                 pg.quit()
                 exit(0)
 
+        deb = time.time()
+        pherom.display(screen)
+        screen.blit(mazeImg, (0, 0))
+        ants.display(screen)
+        pg.display.update()
                 
-
-        ## afichage sur un thread different
-                
-        ##je connais pas la taille de pherom... nombre de cases
-        pherom_glob = np.zeros(resolution)
-        # ## Gatherv pour un vecteur, Gather sinon, je suis pas sur du type
-        # comm.Gather(pherom, pherom_glob, 0)
-
-
-        if rank == 0:
-            ## Gather and process information from other ranks
-            for i in range(1, nbp):
-                rank_pherom = np.zeros(resolution)  # Initialize array for storing pheromones from each rank
-                comm.Recv(rank_pherom, source=i)  # Receive pheromone information from other ranks
-                pherom_glob += rank_pherom  # Aggregate pheromones from different ranks
-
-            ## Display gathered information
-            # deb = time.time()
-            # pherom.display(pherom_glob, screen)  # Display gathered pheromones
-            # screen.blit(mazeImg, (0, 0))  # Display maze
-            # ants.display(screen)  # Display ants
-            # pg.display.update()  # Update display
-
-
-
-            deb = time.time()
-            pherom_glob.display(screen)
-            screen.blit(mazeImg, (0, 0))
-            ants.display(screen)
-            pg.display.update()
-                    
-            food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
-            pherom_glob.do_evaporation(pos_food)
-            end = time.time()
-            if food_counter == 1 and not snapshop_taken:
-                pg.image.save(screen, "MyFirstFood.png")
-                snapshop_taken = True
-            # pg.time.wait(500)
-            print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+        food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
+        pherom.do_evaporation(pos_food)
+        end = time.time()
+        if food_counter == 1 and not snapshop_taken:
+            pg.image.save(screen, "MyFirstFood.png")
+            snapshop_taken = True
+        # pg.time.wait(500)
+        print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
