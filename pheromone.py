@@ -40,3 +40,7 @@ class Pheromon:
 
     def display(self, screen):
         [[screen.fill(self.getColor(i, j), (8*(j-1), 8*(i-1), 8, 8)) for j in range(1, self.pheromon.shape[1]-1)] for i in range(1, self.pheromon.shape[0]-1)]
+
+
+p = Pheromon.create_empty((10, 10))
+
