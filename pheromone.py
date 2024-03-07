@@ -17,7 +17,7 @@ class Pheromon:
         self.pheromon[the_food_position[0]+1, the_food_position[1]+1] = 1.
 
     def create_empty(self, the_dimensions):
-        self.pheromon = np.zeros((the_dimensions[0]+2, the_dimensions[1]+2), dtype=np.double)
+        self.pheromon = np.empty((the_dimensions[0]+2, the_dimensions[1]+2), dtype=np.double)
 
     def do_evaporation(self, the_pos_food):
         self.pheromon = self.beta * self.pheromon
