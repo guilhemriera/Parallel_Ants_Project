@@ -269,17 +269,28 @@ if __name__ == "__main__":
                 pg.quit()
                 exit(0)
 
-        deb = time.time()
-        pherom.display(screen)
-        screen.blit(mazeImg, (0, 0))
-        ants.display(screen)
-        pg.display.update()
                 
-        food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
-        pherom.do_evaporation(pos_food)
-        end = time.time()
-        if food_counter == 1 and not snapshop_taken:
-            pg.image.save(screen, "MyFirstFood.png")
-            snapshop_taken = True
-        # pg.time.wait(500)
-        print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+
+        ## afichage sur un thread different
+                
+        ##je connais pas la taille de pherom...
+        pherom_glob = np.zeros(pherom.size)
+        ## Gatherv pour un vecteur, Gather sinon, je suis pas sur du type
+        comm.Gatherv(pherom, pherom_glob, 0)
+        #quentin a fait un reduce pour les pheromones
+
+        if rank == 0:
+            deb = time.time()
+            pherom_glob.display(screen)
+            screen.blit(mazeImg, (0, 0))
+            ants.display(screen)
+            pg.display.update()
+                    
+            food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
+            pherom_glob.do_evaporation(pos_food)
+            end = time.time()
+            if food_counter == 1 and not snapshop_taken:
+                pg.image.save(screen, "MyFirstFood.png")
+                snapshop_taken = True
+            # pg.time.wait(500)
+            print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
