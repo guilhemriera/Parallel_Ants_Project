@@ -239,7 +239,9 @@ if __name__ == "__main__":
         size_laby = int(sys.argv[1]),int(sys.argv[2])
 
     resolution = size_laby[1]*8, size_laby[0]*8
-    screen = pg.display.set_mode(resolution)
+    if rank == 0:
+        screen = pg.display.set_mode(resolution)
+        print("aaaa")
     nb_ants = (size_laby[0]*size_laby[1]//4)//nbp
     if (rank < (size_laby[0]*size_laby[1]//4)%nbp and rank != 0):
         nb_ants += 1
@@ -258,7 +260,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         beta = float(sys.argv[5])
     pherom = pheromone.Pheromon(size_laby, pos_food, alpha, beta)
-    mazeImg = a_maze.display()
+    if rank == 0 :
+        mazeImg = a_maze.display()
     food_counter = 0
     
 
