@@ -195,8 +195,12 @@ class Colony:
     def advance(self, the_maze, pos_food, pos_nest, pheromones, food_counter=0):
         loaded_ants = np.nonzero(self.is_loaded == True)[0]
         unloaded_ants = np.nonzero(self.is_loaded == False)[0]
+        new_food = 0
         if loaded_ants.shape[0] > 0:
-            food_counter = self.return_to_nest(loaded_ants, pos_nest, food_counter)
+            old_food_counter = food_counter
+            food_counter = self.return_to_nest(loaded_ants, pos_nest, 0)
+            new_food = food_counter - old_food_counter
+
         if unloaded_ants.shape[0] > 0:
             self.explore(unloaded_ants, the_maze, pos_food, pos_nest, pheromones)
 
@@ -216,11 +220,21 @@ class Colony:
         old_pheromone_flat = old_pheromone.flatten()
         comm_calcule.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
         pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
+        synchronisation_and_send_fonction(new_food,pheromones,ants)
         return food_counter
-
+    
     def display(self, screen):
         [screen.blit(self.sprites[self.directions[i]], (8*self.historic_path[i, self.age[i], 1], 8*self.historic_path[i, self.age[i], 0])) for i in range(self.directions.shape[0])]
 
+def synchronisation_and_send_fonction(new_food,pheromones,ants):
+    #envoie des phéromones
+    if comm_calcule.rank == 0:
+        comm.Send(pheromones.pheromon, source=0)
+    food = comm.reduce(new_food, op=MPI.SUM, root=0)
+    ants = comm.gather(ants, root=0)
+
+    
+    
 
 if __name__ == "__main__":
     import sys
@@ -242,10 +256,9 @@ if __name__ == "__main__":
 
     resolution = size_laby[1]*8, size_laby[0]*8
     screen = pg.display.set_mode(resolution)
-    #nbp-1?
-    nb_ants = (size_laby[0]*size_laby[1]//4)//nbp
-    if (rank < (size_laby[0]*size_laby[1]//4)%nbp):
-        nb_ants += 1
+    
+
+    nb_ants = (size_laby[0]*size_laby[1]//4)//(comm_calcule.size) + (1 if comm_calcule.rank < (size_laby[0]*size_laby[1]//4)%(comm_calcule.size) else 0)
     max_life = 500
     if len(sys.argv) > 3:
         max_life = int(sys.argv[3])
@@ -294,25 +307,33 @@ if __name__ == "__main__":
         # allreduce ne marche pas, je sais pas pourquoi
         
         # print("apres")
-
+        
         if rank == 0:
-
-            # pherom.pheromon = comm.Recv(pherom.pheromon, source=MPI.ANY_SOURCE)
-            # food_counter = comm.Recv(food_counter, source=MPI.ANY_SOURCE)
-            # ants = comm.Recv(ants, source=MPI.ANY_SOURCE)
+            new_food = 0
+            actualise_pheromone = np.zeros(resolution)
+            comm.Recv(actualise_pheromone, source=1)
+            food = comm.reduce(new_food, op=MPI.SUM, root=0)
+            food_counter += food
+            ants = comm.gather(ants, root=0)
 
             deb = time.time()
+            
             pherom.display(screen)
             screen.blit(mazeImg, (0, 0))
             ants.display(screen)
             pg.display.update()
             end = time.time()
-            food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
-            pherom.do_evaporation(pos_food)
+
             if food_counter == 1 and not snapshop_taken:
                 pg.image.save(screen, "MyFirstFood.png")
                 snapshop_taken = True
             print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+        
+        else :
+            
+            food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
+            pherom.do_evaporation(pos_food)
+            
 
 
 
