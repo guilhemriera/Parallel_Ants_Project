@@ -221,6 +221,7 @@ class Colony:
         return food_counter
     
     def display(self, screen):
+        print(f"rank : {comm.rank}, age shape : {self.age} \n, historic_path shape : {self.historic_path.shape}, \n direction shape : {self.directions}\n")
         [screen.blit(self.sprites[self.directions[i]], (8*self.historic_path[i, self.age[i], 1], 8*self.historic_path[i, self.age[i], 0])) for i in range(self.directions.shape[0])]
 
 def send_function(new_food,pheromones,ants):
@@ -231,11 +232,25 @@ def send_function(new_food,pheromones,ants):
 
     flat_historic_path = ants.historic_path.flatten()
     
-    print(f" rank : {comm.rank}, age shape : {ants.age.shape}, historic_path shape : {ants.historic_path.size}, direction shape : {ants.directions.shape}")
-    comm.Gather(ants.directions,direction_ants, root=0)
-    comm.Gather(ants.age, age_ants, root=0)
-    comm.Gather(flat_historic_path, historic_path_ants_0, root=0)
-    #comm.Gather(ants.historic_path[:,:,1], historic_path_ants_1, root=0)
+    direction_ants = np.zeros(comm_calcule.size*ants.directions.size)
+    age_ants = np.zeros(comm_calcule.size*ants.age.size) 
+    historic_path_ants = np.zeros(comm_calcule.size*ants.historic_path.size)
+    #direction_ants = np.empty_like(ants.directions)
+    #age_ants = np.empty_like(ants.age)
+    #historic_path_ants = np.empty_like(ants.historic_path)
+    
+    #print(f" rank : {comm.rank}, age shape : {ants.age.shape}, historic_path shape : {ants.historic_path.size}, direction shape : {ants.directions.shape}")
+
+    print(f"rank : {comm.rank}, age shape : {ants.age} \n, historic_path shape : {ants.historic_path.shape}, \n direction shape : {ants.directions}\n")
+    
+    comm_calcule.Allgather(ants.directions,direction_ants)
+    comm_calcule.Allgather(ants.age, age_ants)
+    comm_calcule.Allgather(flat_historic_path, historic_path_ants)
+
+    if comm_calcule.rank == 1:
+        comm.Send(direction_ants, dest=0)
+        comm.Send(age_ants, dest=0)
+        comm.Send(historic_path_ants, dest=0)
 
 def recieve_function(pherom, ants, food_counter):
     new_food = 0
@@ -249,25 +264,26 @@ def recieve_function(pherom, ants, food_counter):
 
     food_counter += food
 
-    direction_ants = np.zeros(len(ants.directions), dtype=ants.directions.dtype)
-    age_ants = np.zeros(len(ants.age)) 
-    historic_path_ants_0 = np.zeros(len(ants.historic_path)*len(ants.historic_path[0])*len(ants.historic_path[0][0]), dtype=ants.historic_path[0,0,0].dtype)
+    direction_ants = np.zeros(comm_calcule.size*ants.directions.size)
+    age_ants = np.zeros(comm_calcule.size*ants.age.size) 
+    historic_path_ants = np.zeros(comm_calcule.size*ants.historic_path.size)
     #historic_path_ants_0 = np.zeros((len(ants.historic_path), len(ants.historic_path[0]), len(ants.historic_path[0][0])), dtype=ants.historic_path[0,0,0].dtype)
     #historic_path_ants_1 = np.zeros((len(ants.historic_path), len(ants.historic_path[0]), len(ants.historic_path[0][0])), dtype=ants.historic_path[0,0,0].dtype)
 
-    print(f" rank : {comm.rank}, age shape : {age_ants.shape}, historic_path shape : {historic_path_ants_0.shape}, direction shape : {direction_ants.shape}")
+    comm.Recv(direction_ants, source=2)
+    comm.Recv(age_ants, source=2)
+    comm.Recv(historic_path_ants, source=2)
 
-    # Recevez les données du processus 0
-    comm.Gather(ants.directions,direction_ants, root=0)
-    comm.Gather(ants.age, age_ants, root=0)
-    comm.Gather(flat_historic_path, historic_path_ants_0, root=0)
-    #comm.Gather(ants.historic_path[:,:,1], historic_path_ants_1, root=0)
+    #print(f" rank : {comm.rank}, age shape : {age_ants.shape}, historic_path shape : {historic_path_ants.shape}, direction shape : {direction_ants.shape}")
+
+    
+    
 
 
     # Utilisez les données reçues
     ants.directions = direction_ants
     ants.age = age_ants
-    ants.historic_path=historic_path_ants_0.reshape(ants.historic_path.shape)
+    ants.historic_path=historic_path_ants.reshape(ants.historic_path.shape)
     #ants.historic_path[:,:,0], ants.historic_path[:,:,1] = historic_path_ants[:,:,0], historic_path_ants[:,:,1]
 
     
@@ -326,8 +342,7 @@ if __name__ == "__main__":
     #buffer d'envoit :
     direction_ants = None
     age_ants = None
-    historic_path_ants_0 = None
-    historic_path_ants_1 = None
+    historic_path_ants = None
     flat_historic_path = None
 
     while True:
