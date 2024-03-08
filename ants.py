@@ -230,7 +230,8 @@ class Colony:
 def synchronisation_and_send_fonction(new_food,pheromones,ants):
     #envoie des phéromones
     if comm_calcule.rank == 0:
-        comm.Send(pheromones.pheromon, dest=0)
+        pheromone_flat = pheromones.pheromon.flatten()
+        comm.Send(pheromone_flat, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
     if comm_calcule.rank == 0:
         comm.Send(ants.directions, dest=0)
@@ -280,6 +281,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         beta = float(sys.argv[5])
     pherom = pheromone.Pheromon(size_laby, pos_food, alpha, beta)
+    
     if rank == 0:
         mazeImg = a_maze.display()
     food_counter = 0
@@ -321,11 +323,10 @@ if __name__ == "__main__":
         
         if rank == 0:
             new_food = 0
-            actualise_pheromone = np.zeros(resolution)
-
+            actualise_pheromone = np.zeros(resolution[0]*resolution[1])
             comm.Recv(actualise_pheromone, source=1)
 
-            pherom.pheromon = actualise_pheromone
+            pherom.pheromon = actualise_pheromone.reshape(resolution)
             food = comm.reduce(new_food, op=MPI.SUM, root=0)
             food_counter += food
 
