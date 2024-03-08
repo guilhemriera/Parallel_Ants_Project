@@ -230,8 +230,8 @@ class Colony:
 def synchronisation_and_send_fonction(new_food,pheromones,ants):
     #envoie des phéromones
     if comm_calcule.rank == 0:
-        pheromone_flat = pheromones.pheromon.flatten()
-        comm.Send(pheromone_flat, dest=0)
+        print(f"size : {pheromones.pheromon.shape}\n")
+        comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
     if comm_calcule.rank == 0:
         comm.Send(ants.directions, dest=0)
@@ -323,10 +323,10 @@ if __name__ == "__main__":
         
         if rank == 0:
             new_food = 0
-            actualise_pheromone = np.zeros(size_laby[0]*size_laby[1])
+            actualise_pheromone = np.zeros(pherom.pheromon.shape).flatten()
             comm.Recv(actualise_pheromone, source=1)
 
-            pherom.pheromon = actualise_pheromone.reshape(size_laby[0],size_laby[1])
+            pherom.pheromon = actualise_pheromone.reshape(pherom.pheromon.shape)
             food = comm.reduce(new_food, op=MPI.SUM, root=0)
             food_counter += food
 
@@ -343,7 +343,9 @@ if __name__ == "__main__":
             ants.directions = direction_ants
             ants.age = age_ants
             ants.historic_path = historic_path_ants
-            print(f"size : {pherom.pheromon.shape}")
+
+
+            print(f"size : {pherom.pheromon.shape}\n")
             deb = time.time()
             
             pherom.display(screen)
