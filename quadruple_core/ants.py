@@ -228,9 +228,14 @@ def send_function(new_food,pheromones,ants):
     if comm_calcule.rank == 0:
         comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
+
+    flat_historic_path = ants.historic_path.flatten()
+    
+    print(f" rank : {comm.rank}, age shape : {ants.age.shape}, historic_path shape : {ants.historic_path.size}, direction shape : {ants.directions.shape}")
     comm.Gather(ants.directions,direction_ants, root=0)
     comm.Gather(ants.age, age_ants, root=0)
-    comm.Gather(ants.historic_path, historic_path_ants, root=0)
+    comm.Gather(flat_historic_path, historic_path_ants_0, root=0)
+    #comm.Gather(ants.historic_path[:,:,1], historic_path_ants_1, root=0)
 
 def recieve_function(pherom, ants, food_counter):
     new_food = 0
@@ -244,20 +249,26 @@ def recieve_function(pherom, ants, food_counter):
 
     food_counter += food
 
-    direction_ants = np.empty([comm.size, len(ants.directions)], dtype=ants.directions.dtype)
-    age_ants = np.empty([comm.size, len(ants.age)]) 
-    historic_path_ants = np.empty([comm.size, len(ants.historic_path)])
+    direction_ants = np.zeros(len(ants.directions), dtype=ants.directions.dtype)
+    age_ants = np.zeros(len(ants.age)) 
+    historic_path_ants_0 = np.zeros(len(ants.historic_path)*len(ants.historic_path[0])*len(ants.historic_path[0][0]), dtype=ants.historic_path[0,0,0].dtype)
+    #historic_path_ants_0 = np.zeros((len(ants.historic_path), len(ants.historic_path[0]), len(ants.historic_path[0][0])), dtype=ants.historic_path[0,0,0].dtype)
+    #historic_path_ants_1 = np.zeros((len(ants.historic_path), len(ants.historic_path[0]), len(ants.historic_path[0][0])), dtype=ants.historic_path[0,0,0].dtype)
+
+    print(f" rank : {comm.rank}, age shape : {age_ants.shape}, historic_path shape : {historic_path_ants_0.shape}, direction shape : {direction_ants.shape}")
 
     # Recevez les données du processus 0
     comm.Gather(ants.directions,direction_ants, root=0)
     comm.Gather(ants.age, age_ants, root=0)
-    comm.Gather(ants.historic_path, historic_path_ants, root=0)
+    comm.Gather(flat_historic_path, historic_path_ants_0, root=0)
+    #comm.Gather(ants.historic_path[:,:,1], historic_path_ants_1, root=0)
 
 
     # Utilisez les données reçues
     ants.directions = direction_ants
     ants.age = age_ants
-    ants.historic_path = historic_path_ants
+    ants.historic_path=historic_path_ants_0.reshape(ants.historic_path.shape)
+    #ants.historic_path[:,:,0], ants.historic_path[:,:,1] = historic_path_ants[:,:,0], historic_path_ants[:,:,1]
 
     
 
@@ -283,7 +294,7 @@ if __name__ == "__main__":
     if rank == 0:
         screen = pg.display.set_mode(resolution)
     
-    nb_ants = size_laby[0]*size_laby[1]//4
+    nb_ants = (size_laby[0]*size_laby[1]//4)//(comm_calcule.size) + (1 if comm_calcule.rank < (size_laby[0]*size_laby[1]//4)%(comm_calcule.size) else 0)
     max_life = 500
     if len(sys.argv) > 3:
         max_life = int(sys.argv[3])
@@ -315,7 +326,9 @@ if __name__ == "__main__":
     #buffer d'envoit :
     direction_ants = None
     age_ants = None
-    historic_path_ants = None
+    historic_path_ants_0 = None
+    historic_path_ants_1 = None
+    flat_historic_path = None
 
     while True:
         for event in pg.event.get():
