@@ -19,7 +19,7 @@ class Maze:
         dimensions: Tuple containing two integers describing the height and length of the maze.
         seed: The random seed used to generate the maze. The same seed produces the same maze.
     """
-    def __init__(self, dimensions, seed):
+    def __init__(self, dimensions, seed, rank):
 
         self.cases_img = []
         self.maze  = np.zeros(dimensions, dtype=np.int8)
@@ -62,9 +62,10 @@ class Maze:
             else:
                 historic.pop()
         #  Load patterns for maze display :
-        img = pg.image.load("cases.png").convert_alpha()
-        for i in range(0, 128, 8):
-            self.cases_img.append(pg.Surface.subsurface(img, i, 0, 8, 8))
+        if rank == 0:
+            img = pg.image.load("cases.png").convert_alpha()
+            for i in range(0, 128, 8):
+                self.cases_img.append(pg.Surface.subsurface(img, i, 0, 8, 8))
 
     def display(self):
         """

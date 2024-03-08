@@ -43,9 +43,10 @@ class Colony:
         # Direction in which the ant is currently facing (depends on the direction it came from).
         self.directions = d.DIR_NONE*np.ones(nb_ants, dtype=np.int8)
         self.sprites = []
-        img = pg.image.load("ants.png").convert_alpha()
-        for i in range(0, 32, 8):
-            self.sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
+        if rank == 0 :
+            img = pg.image.load("ants.png").convert_alpha()
+            for i in range(0, 32, 8):
+                self.sprites.append(pg.Surface.subsurface(img, i, 0, 8, 8))
 
     def return_to_nest(self, loaded_ants, pos_nest, food_counter):
         """
@@ -232,7 +233,6 @@ def synchronisation_and_send_fonction(new_food,pheromones,ants):
         comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
     if comm_calcule.rank == 0:
-        print(f"rank != 0 \n directions : {ants.directions} \n age : {ants.age} \n historic_path : {ants.historic_path}")
         comm.Send(ants.directions, dest=0)
         comm.Send(ants.age, dest=0)
         comm.Send(ants.historic_path, dest=0)
@@ -259,7 +259,9 @@ if __name__ == "__main__":
         size_laby = int(sys.argv[1]),int(sys.argv[2])
 
     resolution = size_laby[1]*8, size_laby[0]*8
-    screen = pg.display.set_mode(resolution)
+
+    if rank == 0:
+        screen = pg.display.set_mode(resolution)
     
     nb_ants = (size_laby[0]*size_laby[1]//4)//(comm_calcule.size) + (1 if comm_calcule.rank < (size_laby[0]*size_laby[1]//4)%(comm_calcule.size) else 0)
     max_life = 500
@@ -267,7 +269,7 @@ if __name__ == "__main__":
         max_life = int(sys.argv[3])
     pos_food = size_laby[0]-1, size_laby[1]-1
     pos_nest = 0, 0
-    a_maze = maze.Maze(size_laby, 12345)
+    a_maze = maze.Maze(size_laby, 12345, rank)
 
     ants = Colony(nb_ants, pos_nest, max_life)
     unloaded_ants = np.array(range(nb_ants))
@@ -278,7 +280,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 5:
         beta = float(sys.argv[5])
     pherom = pheromone.Pheromon(size_laby, pos_food, alpha, beta)
-    mazeImg = a_maze.display()
+    if rank == 0:
+        mazeImg = a_maze.display()
     food_counter = 0
     
 
@@ -321,6 +324,8 @@ if __name__ == "__main__":
             actualise_pheromone = np.zeros(resolution)
 
             comm.Recv(actualise_pheromone, source=1)
+
+            pherom.pheromon = actualise_pheromone
             food = comm.reduce(new_food, op=MPI.SUM, root=0)
             food_counter += food
 
@@ -337,7 +342,7 @@ if __name__ == "__main__":
             ants.directions = direction_ants
             ants.age = age_ants
             ants.historic_path = historic_path_ants
-            print(f"\n fonction \n directions : {ants.directions} \n age : {ants.age} \n historic_path : {ants.historic_path}")
+            print(f"size : {pherom.pheromon.shape}")
             deb = time.time()
             
             pherom.display(screen)
