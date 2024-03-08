@@ -229,7 +229,7 @@ class Colony:
 def synchronisation_and_send_fonction(new_food,pheromones,ants):
     #envoie des phéromones
     if comm_calcule.rank == 0:
-        comm.Send(pheromones.pheromon, source=0)
+        comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
     ants = comm.gather(ants, root=0)
 
