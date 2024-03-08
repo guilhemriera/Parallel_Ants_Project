@@ -300,6 +300,10 @@ if __name__ == "__main__":
         # pherom_glob = pheromone.Pheromon((size_laby), (pos_food))
         
         # pherom_glob.create_empty(size_laby)
+                
+        # food_counter_glob = 0
+
+        # ants_glob = Colony(nb_ants, pos_nest, max_life)
 
 
 
