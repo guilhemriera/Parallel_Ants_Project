@@ -217,13 +217,13 @@ class Colony:
         old_pheromone_flat = old_pheromone.flatten()
         comm_calcule.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
         pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
-        synchronisation_and_send_fonction(new_food,pheromones,ants)
+        synchronisation_and_send_fonction(new_food, pheromones, ants, direction_ants, age_ants, historic_path_ants)
         return food_counter
     
     def display(self, screen):
         [screen.blit(self.sprites[self.directions[i]], (8*self.historic_path[i, self.age[i], 1], 8*self.historic_path[i, self.age[i], 0])) for i in range(self.directions.shape[0])]
 
-def synchronisation_and_send_fonction(new_food,pheromones,ants):
+def synchronisation_and_send_fonction(new_food,pheromones,ants, direction_ants, age_ants, historic_path_ants):
     #envoie des phéromones
     if comm_calcule.rank == 0:
         comm.Send(pheromones.pheromon, dest=0)
@@ -301,9 +301,9 @@ if __name__ == "__main__":
 
             food_counter += food
 
-            direction_ants = np.empty_like(ants.directions)
-            age_ants = np.empty_like(ants.age)
-            historic_path_ants = np.empty_like(ants.historic_path)
+            direction_ants = np.zeros_like(ants.directions)
+            age_ants = np.zeros_like(ants.age)
+            historic_path_ants = np.zeros_like(ants.historic_path)
 
             # Recevez les données du processus 0
             comm.Gather(ants.directions,direction_ants, root=0)
@@ -344,6 +344,6 @@ if __name__ == "__main__":
                 print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
         
         else :
-            
+
             food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
             pherom.do_evaporation(pos_food)
