@@ -8,6 +8,7 @@ import direction as d
 import pygame as pg
 import mpi4py as mpi
 from mpi4py import MPI
+import pickle
 
 UNLOADED, LOADED = False, True
 
@@ -231,7 +232,10 @@ def synchronisation_and_send_fonction(new_food,pheromones,ants):
     if comm_calcule.rank == 0:
         comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
-    ants = comm.gather(ants, root=0)
+    if comm_calcule.rank == 0:
+        comm.Send(ants.directions, dest=0)
+        comm.Send(ants.age, dest=0)
+        comm.Send(ants.historic_path, dest=0)
 
     
     
@@ -257,7 +261,6 @@ if __name__ == "__main__":
     resolution = size_laby[1]*8, size_laby[0]*8
     screen = pg.display.set_mode(resolution)
     
-
     nb_ants = (size_laby[0]*size_laby[1]//4)//(comm_calcule.size) + (1 if comm_calcule.rank < (size_laby[0]*size_laby[1]//4)%(comm_calcule.size) else 0)
     max_life = 500
     if len(sys.argv) > 3:
@@ -265,6 +268,7 @@ if __name__ == "__main__":
     pos_food = size_laby[0]-1, size_laby[1]-1
     pos_nest = 0, 0
     a_maze = maze.Maze(size_laby, 12345)
+
     ants = Colony(nb_ants, pos_nest, max_life)
     unloaded_ants = np.array(range(nb_ants))
     alpha = 0.9
@@ -315,10 +319,24 @@ if __name__ == "__main__":
         if rank == 0:
             new_food = 0
             actualise_pheromone = np.zeros(resolution)
+
             comm.Recv(actualise_pheromone, source=1)
             food = comm.reduce(new_food, op=MPI.SUM, root=0)
             food_counter += food
-            ants = comm.gather(ants, root=0)
+
+            direction_ants = np.empty_like(ants.directions)
+            age_ants = np.empty_like(ants.age)
+            historic_path_ants = np.empty_like(ants.historic_path)
+
+            # Recevez les données du processus 0
+            comm.Recv(direction_ants, source=1)
+            comm.Recv(age_ants, source=1)
+            comm.Recv(historic_path_ants, source=1)
+
+            # Utilisez les données reçues
+            ants.directions = direction_ants
+            ants.age = age_ants
+            ants.historic_path = historic_path_ants
 
             deb = time.time()
             
