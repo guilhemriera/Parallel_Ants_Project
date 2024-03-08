@@ -217,13 +217,13 @@ class Colony:
         old_pheromone_flat = old_pheromone.flatten()
         comm_calcule.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
         pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
-        synchronisation_and_send_fonction(new_food, pheromones, ants, direction_ants, age_ants, historic_path_ants)
+        send_function(new_food,pheromones,ants)
         return food_counter
     
     def display(self, screen):
         [screen.blit(self.sprites[self.directions[i]], (8*self.historic_path[i, self.age[i], 1], 8*self.historic_path[i, self.age[i], 0])) for i in range(self.directions.shape[0])]
 
-def synchronisation_and_send_fonction(new_food,pheromones,ants, direction_ants, age_ants, historic_path_ants):
+def send_function(new_food,pheromones,ants):
     #envoie des phéromones
     if comm_calcule.rank == 0:
         comm.Send(pheromones.pheromon, dest=0)
@@ -232,6 +232,32 @@ def synchronisation_and_send_fonction(new_food,pheromones,ants, direction_ants, 
     comm.Gather(ants.age, age_ants, root=0)
     comm.Gather(ants.historic_path, historic_path_ants, root=0)
 
+def recieve_function(pherom, ants, food_counter):
+    new_food = 0
+    food = 0
+    actualise_pheromone = np.zeros(pherom.pheromon.shape).flatten()
+    comm.Recv(actualise_pheromone, source=1)
+
+    pherom.pheromon = actualise_pheromone.reshape(pherom.pheromon.shape)
+
+    food = comm.reduce(new_food, op=MPI.SUM, root=0)
+
+    food_counter += food
+
+    direction_ants = np.empty([comm.size, len(ants.directions)], dtype=ants.directions.dtype)
+    age_ants = np.empty([comm.size, len(ants.age)]) 
+    historic_path_ants = np.empty([comm.size, len(ants.historic_path)])
+
+    # Recevez les données du processus 0
+    comm.Gather(ants.directions,direction_ants, root=0)
+    comm.Gather(ants.age, age_ants, root=0)
+    comm.Gather(ants.historic_path, historic_path_ants, root=0)
+
+
+    # Utilisez les données reçues
+    ants.directions = direction_ants
+    ants.age = age_ants
+    ants.historic_path = historic_path_ants
 
     
 
@@ -279,10 +305,18 @@ if __name__ == "__main__":
         mazeImg = a_maze.display()
     food_counter = 0
     
-
+    
     snapshop_taken = False
+
+    #bouléen d'objectif
     first_check = True
     second_check = True
+
+    #buffer d'envoit :
+    direction_ants = None
+    age_ants = None
+    historic_path_ants = None
+
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -290,34 +324,12 @@ if __name__ == "__main__":
                 exit(0)
 
         if rank == 0:
-            new_food = 0
-            food = 0
-            actualise_pheromone = np.zeros(pherom.pheromon.shape).flatten()
-            comm.Recv(actualise_pheromone, source=1)
-
-            pherom.pheromon = actualise_pheromone.reshape(pherom.pheromon.shape)
-
-            food = comm.reduce(new_food, op=MPI.SUM, root=0)
-
-            food_counter += food
-
-            direction_ants = np.zeros_like(ants.directions)
-            age_ants = np.zeros_like(ants.age)
-            historic_path_ants = np.zeros_like(ants.historic_path)
-
-            # Recevez les données du processus 0
-            comm.Gather(ants.directions,direction_ants, root=0)
-            comm.Gather(ants.age, age_ants, root=0)
-            comm.Gather(ants.historic_path, historic_path_ants, root=0)
-
-
-            # Utilisez les données reçues
-            ants.directions = direction_ants
-            ants.age = age_ants
-            ants.historic_path = historic_path_ants
-
+            
+            
             deb = time.time()
             
+            recieve_function(pherom, ants, food_counter)
+
             pherom.display(screen)
             screen.blit(mazeImg, (0, 0))
             ants.display(screen)
