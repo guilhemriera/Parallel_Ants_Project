@@ -323,10 +323,10 @@ if __name__ == "__main__":
         
         if rank == 0:
             new_food = 0
-            actualise_pheromone = np.zeros(resolution[0]*resolution[1])
+            actualise_pheromone = np.zeros(size_laby[0]*size_laby[1])
             comm.Recv(actualise_pheromone, source=1)
 
-            pherom.pheromon = actualise_pheromone.reshape(resolution)
+            pherom.pheromon = actualise_pheromone.reshape(size_laby[0],size_laby[1])
             food = comm.reduce(new_food, op=MPI.SUM, root=0)
             food_counter += food
 
