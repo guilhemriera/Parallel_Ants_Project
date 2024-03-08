@@ -230,7 +230,6 @@ class Colony:
 def synchronisation_and_send_fonction(new_food,pheromones,ants):
     #envoie des phéromones
     if comm_calcule.rank == 0:
-        print(f"size : {pheromones.pheromon.shape}\n")
         comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
     if comm_calcule.rank == 0:
@@ -344,8 +343,6 @@ if __name__ == "__main__":
             ants.age = age_ants
             ants.historic_path = historic_path_ants
 
-
-            print(f"size : {pherom.pheromon.shape}\n")
             deb = time.time()
             
             pherom.display(screen)
