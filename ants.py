@@ -282,33 +282,25 @@ if __name__ == "__main__":
 
 ############################# Partie qui marche pas ####################################
 
-        # # create empty ne marche pas je sais pas pourquoi
-        # pherom_glob = pheromone.Pheromon.create_empty(size_laby)
+        # create empty marche enfin
 
-        # # allreduce ne marche pas non plus, je sais pas pourquoi
-        # comm.Allreduce(pherom, pherom_glob, op=MPI.SUM)
-
-        # if rank == 0:
-            
-        #     deb = time.time()
-        #     pherom_glob.display(screen)
-        #     screen.blit(mazeImg, (0, 0))
-        #     ants.display(screen)
-        #     pg.display.update()
-        #     end = time.time()
-        #     food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
-        #     pherom_glob.do_evaporation(pos_food)
-        #     if food_counter == 1 and not snapshop_taken:
-        #         pg.image.save(screen, "MyFirstFood.png")
-        #         snapshop_taken = True
-        #     print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+        # pherom_glob = pheromone.Pheromon((size_laby), (pos_food))
+        
+        # pherom_glob.create_empty(size_laby)
 
 
 
-############################# Partie qui marche ####################################
+        # print("avant")
+        # allreduce ne marche pas, je sais pas pourquoi
+        
+        # print("apres")
 
         if rank == 0:
-            
+
+            # pherom.pheromon = comm.Recv(pherom.pheromon, source=MPI.ANY_SOURCE)
+            # food_counter = comm.Recv(food_counter, source=MPI.ANY_SOURCE)
+            # ants = comm.Recv(ants, source=MPI.ANY_SOURCE)
+
             deb = time.time()
             pherom.display(screen)
             screen.blit(mazeImg, (0, 0))
@@ -321,6 +313,25 @@ if __name__ == "__main__":
                 pg.image.save(screen, "MyFirstFood.png")
                 snapshop_taken = True
             print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+
+
+
+############################# Partie qui marche ####################################
+
+        # if rank == 0:
+            
+        #     deb = time.time()
+        #     pherom.display(screen)
+        #     screen.blit(mazeImg, (0, 0))
+        #     ants.display(screen)
+        #     pg.display.update()
+        #     end = time.time()
+        #     food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
+        #     pherom.do_evaporation(pos_food)
+        #     if food_counter == 1 and not snapshop_taken:
+        #         pg.image.save(screen, "MyFirstFood.png")
+        #         snapshop_taken = True
+        #     print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
 
 
 ####################### Brouillons pour copier coller ################################
