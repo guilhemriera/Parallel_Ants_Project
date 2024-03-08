@@ -198,9 +198,7 @@ class Colony:
         unloaded_ants = np.nonzero(self.is_loaded == False)[0]
         new_food = 0
         if loaded_ants.shape[0] > 0:
-            old_food_counter = food_counter
-            food_counter = self.return_to_nest(loaded_ants, pos_nest, 0)
-            new_food = food_counter - old_food_counter
+            new_food = self.return_to_nest(loaded_ants, pos_nest, 0)
 
         if unloaded_ants.shape[0] > 0:
             self.explore(unloaded_ants, the_maze, pos_food, pos_nest, pheromones)
@@ -322,11 +320,14 @@ if __name__ == "__main__":
         
         if rank == 0:
             new_food = 0
+            food = 0
             actualise_pheromone = np.zeros(pherom.pheromon.shape).flatten()
             comm.Recv(actualise_pheromone, source=1)
 
             pherom.pheromon = actualise_pheromone.reshape(pherom.pheromon.shape)
+
             food = comm.reduce(new_food, op=MPI.SUM, root=0)
+
             food_counter += food
 
             direction_ants = np.empty_like(ants.directions)
