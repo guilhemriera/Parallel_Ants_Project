@@ -8,7 +8,6 @@ import direction as d
 import pygame as pg
 import mpi4py as mpi
 from mpi4py import MPI
-import pickle
 
 UNLOADED, LOADED = False, True
 
@@ -233,6 +232,7 @@ def synchronisation_and_send_fonction(new_food,pheromones,ants):
         comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
     if comm_calcule.rank == 0:
+        print(f"rank != 0 \n directions : {ants.directions} \n age : {ants.age} \n historic_path : {ants.historic_path}")
         comm.Send(ants.directions, dest=0)
         comm.Send(ants.age, dest=0)
         comm.Send(ants.historic_path, dest=0)
@@ -337,7 +337,7 @@ if __name__ == "__main__":
             ants.directions = direction_ants
             ants.age = age_ants
             ants.historic_path = historic_path_ants
-
+            print(f"\n fonction \n directions : {ants.directions} \n age : {ants.age} \n historic_path : {ants.historic_path}")
             deb = time.time()
             
             pherom.display(screen)
