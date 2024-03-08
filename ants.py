@@ -214,8 +214,6 @@ class Colony:
                          [has_north_exit[i], has_east_exit[i], has_west_exit[i], has_south_exit[i]], old_pheromone) for i in range(self.directions.shape[0])]
         
 
-        #réunion des phéromones entre les processus
-        
         old_pheromone_flat = old_pheromone.flatten()
         comm_calcule.Allreduce(MPI.IN_PLACE, old_pheromone_flat, op=MPI.MAX)
         pheromones.pheromon = old_pheromone_flat.reshape(old_pheromone.shape)
@@ -230,17 +228,17 @@ def synchronisation_and_send_fonction(new_food,pheromones,ants):
     if comm_calcule.rank == 0:
         comm.Send(pheromones.pheromon, dest=0)
     food = comm.reduce(new_food, op=MPI.SUM, root=0)
-    if comm_calcule.rank == 0:
-        comm.Send(ants.directions, dest=0)
-        comm.Send(ants.age, dest=0)
-        comm.Send(ants.historic_path, dest=0)
+    comm.Gather(ants.directions,direction_ants, root=0)
+    comm.Gather(ants.age, age_ants, root=0)
+    comm.Gather(ants.historic_path, historic_path_ants, root=0)
 
-    
+
     
 
 if __name__ == "__main__":
     import sys
     import time
+    deb_main = time.time()
 
     #initialisation des processus
     comm = MPI.COMM_WORLD.Dup()
@@ -248,8 +246,6 @@ if __name__ == "__main__":
     rank = comm.rank
 
     comm_calcule = comm.Split(color=int(rank!=0), key=rank)
-
-    print(f"Hello from {rank} of {nbp}")
 
     pg.init()
     size_laby = 25, 25
@@ -261,7 +257,7 @@ if __name__ == "__main__":
     if rank == 0:
         screen = pg.display.set_mode(resolution)
     
-    nb_ants = (size_laby[0]*size_laby[1]//4)//(comm_calcule.size) + (1 if comm_calcule.rank < (size_laby[0]*size_laby[1]//4)%(comm_calcule.size) else 0)
+    nb_ants = size_laby[0]*size_laby[1]//4
     max_life = 500
     if len(sys.argv) > 3:
         max_life = int(sys.argv[3])
@@ -285,39 +281,14 @@ if __name__ == "__main__":
     
 
     snapshop_taken = False
+    first_check = True
+    second_check = True
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
                 exit(0)
 
-
-
-########################################################################################
-######################## PARTIE JEROME QUI MARCHE PAS ##################################
-########################################################################################
-
-
-
-############################# Partie qui marche pas ####################################
-
-        # create empty marche enfin
-
-        # pherom_glob = pheromone.Pheromon((size_laby), (pos_food))
-        
-        # pherom_glob.create_empty(size_laby)
-                
-        # food_counter_glob = 0
-
-        # ants_glob = Colony(nb_ants, pos_nest, max_life)
-
-
-
-        # print("avant")
-        # allreduce ne marche pas, je sais pas pourquoi
-        
-        # print("apres")
-        
         if rank == 0:
             new_food = 0
             food = 0
@@ -335,9 +306,10 @@ if __name__ == "__main__":
             historic_path_ants = np.empty_like(ants.historic_path)
 
             # Recevez les données du processus 0
-            comm.Recv(direction_ants, source=1)
-            comm.Recv(age_ants, source=1)
-            comm.Recv(historic_path_ants, source=1)
+            comm.Gather(ants.directions,direction_ants, root=0)
+            comm.Gather(ants.age, age_ants, root=0)
+            comm.Gather(ants.historic_path, historic_path_ants, root=0)
+
 
             # Utilisez les données reçues
             ants.directions = direction_ants
@@ -355,79 +327,23 @@ if __name__ == "__main__":
             if food_counter == 1 and not snapshop_taken:
                 pg.image.save(screen, "MyFirstFood.png")
                 snapshop_taken = True
-            print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
+            
+            #mesure des durées d'atteint d'objectif
+            if food_counter >= 1 and food_counter < 999:
+                if first_check==True:
+                    fin_first_food = time.time()
+                    first_check = False
+                print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}, temps pour première nouriture : {fin_first_food - deb_main}", end='\r')
+            elif food_counter >= 1000:
+                if second_check==True:
+                    fin_second_food = time.time()
+                    second_check = False
+                print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}, temps pour première nouriture : {fin_first_food - deb_main}, temps pour 1000 nouriture : {fin_second_food - deb_main}\n")
+                exit(0)
+            else:
+                print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
         
         else :
             
             food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
             pherom.do_evaporation(pos_food)
-            
-
-
-
-############################# Partie qui marche ####################################
-
-        # if rank == 0:
-            
-        #     deb = time.time()
-        #     pherom.display(screen)
-        #     screen.blit(mazeImg, (0, 0))
-        #     ants.display(screen)
-        #     pg.display.update()
-        #     end = time.time()
-        #     food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
-        #     pherom.do_evaporation(pos_food)
-        #     if food_counter == 1 and not snapshop_taken:
-        #         pg.image.save(screen, "MyFirstFood.png")
-        #         snapshop_taken = True
-        #     print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
-
-
-####################### Brouillons pour copier coller ################################
-
-        # deb = time.time()
-        # pherom.display(screen)
-        # screen.blit(mazeImg, (0, 0))
-        # ants.display(screen)
-        # pg.display.update()
-                
-        # food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom, food_counter)
-        # pherom.do_evaporation(pos_food)
-        # end = time.time()
-        # if food_counter == 1 and not snapshop_taken:
-        #     pg.image.save(screen, "MyFirstFood.png")
-        #     snapshop_taken = True
-        # # pg.time.wait(500)
-        # print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')
-
-
-        ## afichage sur un thread different
-                
-        # pherom_glob = np.zeros(resolution)
-        
-        # ## Gatherv pour un vecteur, Gather sinon, je suis pas sur du type
-        # comm.Allreduce(pherom, pherom_glob, op=MPI.SUM)
-        #quentin a fait un allreduce
-
-        # if rank == 0:
-        #     ## Gather and process information from other ranks
-        #     for i in range(1, nbp):
-        #         pherom = np.zeros(resolution)  # Initialize array for storing pheromones from each rank
-        #         comm.Recv(pherom, source=i)  # Receive pheromone information from other ranks
-        #         pherom_glob += pherom  # Aggregate pheromones from different ranks
-
-        #     deb = time.time()
-        #     pherom_glob.display(screen)
-        #     screen.blit(mazeImg, (0, 0))
-        #     ants.display(screen)
-        #     pg.display.update()
-        #     end = time.time()
-                    
-        #     food_counter = ants.advance(a_maze, pos_food, pos_nest, pherom_glob, food_counter)
-        #     pherom_glob.do_evaporation(pos_food)
-        #     #end = time.time()
-        #     if food_counter == 1 and not snapshop_taken:
-        #         pg.image.save(screen, "MyFirstFood.png")
-        #         snapshop_taken = True
-        #     # pg.time.wait(500)
-        #     print(f"FPS : {1./(end-deb):6.2f}, nourriture : {food_counter:7d}", end='\r')

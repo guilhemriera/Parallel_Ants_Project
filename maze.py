@@ -101,3 +101,4 @@ if __name__  == "__main__":
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 pg.quit()
+                exit(0)
