@@ -36,7 +36,7 @@ class Pheromon:
 
     def getColor(self, i: int, j: int):
         val = max(min(self.pheromon[i, j], 1), 0)
-        return [255*(val > 1.E-8), 255*math.exp(-val*100), 128.]
+        return [255*(val > 1.E-16), 255*val,128.]
 
     def display(self, screen):
         [[screen.fill(self.getColor(i, j), (8*(j-1), 8*(i-1), 8, 8)) for j in range(1, self.pheromon.shape[1]-1)] for i in range(1, self.pheromon.shape[0]-1)]
